@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1ec3348f5250b8140877eca256f7572e, type: 3}
+  m_Name: Tank Color Palette
+  m_EditorClassIdentifier: Assembly-CSharp::TanTanTank.TankColorPalette
+  colors:
+  - {fileID: 2100000, guid: bc8d0dbe283e4a2498adfd2da668f2aa, type: 2}
+  - {fileID: 2100000, guid: 7ae29291901ec1b4ea74261032ded8cf, type: 2}
+  - {fileID: 2100000, guid: 098b352563b02bc4bb49a1e964c9e925, type: 2}
+  - {fileID: 2100000, guid: f6632f2ef11d8b04389392cc42b48866, type: 2}
+  - {fileID: 2100000, guid: 89d985852f6ef9c4ba6254a849b43e60, type: 2}
+  - {fileID: 2100000, guid: 09b441177d1604648b2c439aeba65a8c, type: 2}
+  - {fileID: 2100000, guid: 2672b42add18cec41b555d2cf35ddcc9, type: 2}
+  - {fileID: 2100000, guid: f156954eaf8a13644a7165390c6aa54f, type: 2}
