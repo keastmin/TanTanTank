@@ -13,11 +13,11 @@ MonoBehaviour:
   m_Name: Game Balance
   m_EditorClassIdentifier: Assembly-CSharp::TanTanTank.GameBalanceConfig
   playerMaxHp: 3
-  tankMoveSpeed: 5
+  tankMoveSpeed: 8
   tankTurnSpeed: 360
-  fireCooldown: 2
+  fireCooldown: 1
   projectileDamage: 1
-  projectileSpeed: 12
+  projectileSpeed: 15
   ownerIgnoreTime: 0.2
   projectileMaxWallHits: 50
   projectileSurfaceEpsilon: 0.01

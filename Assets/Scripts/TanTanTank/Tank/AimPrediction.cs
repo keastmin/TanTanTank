@@ -28,6 +28,7 @@ namespace TanTanTank
             if (_line.sharedMaterial == null)
                 _line.sharedMaterial = Resources.Load<Material>("TanTanTank/Aim Preview");
             _line.useWorldSpace = true;
+            _line.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             _line.startWidth = Mathf.Max(_line.startWidth, 0.3f);
             _line.endWidth = Mathf.Max(_line.endWidth, 0.3f);
             _line.enabled = false;
