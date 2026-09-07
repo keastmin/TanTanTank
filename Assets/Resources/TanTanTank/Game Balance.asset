@@ -22,5 +22,5 @@ MonoBehaviour:
   projectileMaxWallHits: 50
   projectileSurfaceEpsilon: 0.01
   maxCollisionIterationsPerTick: 8
-  aimPreviewMaxDistance: 15
+  aimPreviewMaxDistance: 30
   matchWinScore: 3

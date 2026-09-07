@@ -1,3 +1,4 @@
+using Fusion;
 using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -12,12 +13,10 @@ namespace TanTanTank
         private Transform _nextStageUI;
         private Transform _resultUI;
         private Transform _systemUI;
-        private Transform _myInfo;
-        private Transform _enemyInfo;
+        private TankInfoView _myInfo;
+        private TankInfoView _enemyInfo;
         private TMP_Text _nextResultText;
         private TMP_Text _matchResultText;
-        private Slider _myHp;
-        private Slider _enemyHp;
         private Image _voteOne;
         private Image _voteTwo;
         private Button _nextButton;
@@ -29,12 +28,8 @@ namespace TanTanTank
             _nextStageUI = transform.FindDirectChild("Next Stage UI");
             _resultUI = transform.FindDirectChild("Result UI");
             _systemUI = transform.FindDirectChild("System UI");
-            _myInfo = _gameUI.FindDeepChild("My Info UI");
-            _enemyInfo = _gameUI.FindDeepChild("Enemy Info UI");
-            var myHpRoot = _myInfo.FindDeepChild("HP");
-            var enemyHpRoot = _enemyInfo.FindDeepChild("HP");
-            _myHp = myHpRoot != null ? myHpRoot.GetComponentInChildren<Slider>(true) : null;
-            _enemyHp = enemyHpRoot != null ? enemyHpRoot.GetComponentInChildren<Slider>(true) : null;
+            _myInfo = new TankInfoView(_gameUI.FindDeepChild("My Info UI"));
+            _enemyInfo = new TankInfoView(_gameUI.FindDeepChild("Enemy Info UI"));
             _nextResultText = _nextStageUI.FindDeepComponent<TMP_Text>("Result Text");
             _matchResultText = _resultUI.FindDeepComponent<TMP_Text>("Result Text");
             _voteOne = _nextStageUI.FindDeepComponent<Image>("Vote Image 1");
@@ -56,8 +51,8 @@ namespace TanTanTank
             if (match == null || local == null)
                 return;
             var enemy = TankNetworkController.GetBySlot(local.PlayerSlot == 0 ? 1 : 0);
-            UpdateInfo(_myInfo, _myHp, local);
-            UpdateInfo(_enemyInfo, _enemyHp, enemy);
+            _myInfo.Refresh(local);
+            _enemyInfo.Refresh(enemy);
 
             var isRoundResult = match.State == GameRoundState.RoundResult;
             var isMatchResult = match.State == GameRoundState.MatchResult;
@@ -83,22 +78,55 @@ namespace TanTanTank
             }
         }
 
-        private static void UpdateInfo(Transform root, Slider hpSlider, TankNetworkController tank)
+        private sealed class TankInfoView
         {
-            if (root == null || tank == null)
-                return;
-            var nicknameRoot = root.FindDeepChild("Nickname");
-            var nicknameText = nicknameRoot != null ? nicknameRoot.GetComponentInChildren<TMP_Text>(true) : null;
-            if (nicknameText != null)
-                nicknameText.text = tank.Nickname.ToString();
-            var scoreRoot = root.FindDeepChild("Score");
-            var scoreText = scoreRoot != null ? scoreRoot.GetComponentInChildren<TMP_Text>(true) : null;
-            if (scoreText != null)
-                scoreText.text = tank.Score.ToString();
-            if (hpSlider != null)
+            private readonly TMP_Text _nickname;
+            private readonly TMP_Text _score;
+            private readonly Slider _hp;
+            private NetworkString<_16> _lastNickname;
+            private int _lastScore = int.MinValue;
+            private int _lastHp = int.MinValue;
+            private bool _hasNickname;
+
+            public TankInfoView(Transform root)
             {
-                hpSlider.maxValue = 3f;
-                hpSlider.value = tank.HP;
+                var nicknameRoot = root != null ? root.FindDeepChild("Nickname") : null;
+                var scoreRoot = root != null ? root.FindDeepChild("Score") : null;
+                var hpRoot = root != null ? root.FindDeepChild("HP") : null;
+                _nickname = nicknameRoot != null ? nicknameRoot.GetComponentInChildren<TMP_Text>(true) : null;
+                _score = scoreRoot != null ? scoreRoot.GetComponentInChildren<TMP_Text>(true) : null;
+                _hp = hpRoot != null ? hpRoot.GetComponentInChildren<Slider>(true) : null;
+                if (_hp != null)
+                    _hp.maxValue = 3f;
+            }
+
+            public void Refresh(TankNetworkController tank)
+            {
+                if (tank == null)
+                    return;
+
+                var nickname = tank.Nickname;
+                if (!_hasNickname || !nickname.Equals(_lastNickname))
+                {
+                    if (_nickname != null)
+                        _nickname.text = nickname.ToString();
+                    _lastNickname = nickname;
+                    _hasNickname = true;
+                }
+
+                if (tank.Score != _lastScore)
+                {
+                    if (_score != null)
+                        _score.text = tank.Score.ToString();
+                    _lastScore = tank.Score;
+                }
+
+                if (tank.HP != _lastHp)
+                {
+                    if (_hp != null)
+                        _hp.value = tank.HP;
+                    _lastHp = tank.HP;
+                }
             }
         }
 

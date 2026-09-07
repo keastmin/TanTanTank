@@ -27,6 +27,7 @@ namespace TanTanTank
         private NetworkObject _matchRuntimePrefab;
         private bool _returningToMain;
         private bool _gameSceneWasActive;
+        private Camera _inputCamera;
 
         public static NetworkSessionController EnsureExists()
         {
@@ -238,35 +239,54 @@ namespace TanTanTank
         public void OnInput(NetworkRunner runner, NetworkInput input)
         {
             var data = new TankNetworkInput();
+            var moveInput = Vector2.zero;
             var keyboard = Keyboard.current;
             if (keyboard != null)
             {
-                data.MoveInput = new Vector2(
+                moveInput = new Vector2(
                     (keyboard.dKey.isPressed ? 1f : 0f) - (keyboard.aKey.isPressed ? 1f : 0f),
                     (keyboard.wKey.isPressed ? 1f : 0f) - (keyboard.sKey.isPressed ? 1f : 0f));
-                if (data.MoveInput.sqrMagnitude > 1f)
-                    data.MoveInput.Normalize();
+                if (moveInput.sqrMagnitude > 1f)
+                    moveInput.Normalize();
             }
 
             var mouse = Mouse.current;
             data.Buttons.Set((int)TankInputButton.Fire, mouse != null && mouse.leftButton.isPressed);
 
-            var camera = Camera.main;
-            if (camera != null && mouse != null)
+            if (_inputCamera == null || !_inputCamera.isActiveAndEnabled)
+                _inputCamera = Camera.main;
+
+            data.MoveDirection = GetCameraRelativeMoveDirection(moveInput, _inputCamera);
+
+            var localTank = TankNetworkController.GetLocalForRunner(runner);
+            if (localTank != null)
             {
-                var localTank = TankNetworkController.GetLocalForRunner(runner);
-                if (localTank != null)
-                {
-                    localTank.UpdateLocalAim(camera, mouse.position.ReadValue());
-                    data.AimDirection = localTank.FireDirection;
-                }
+                // TankNetworkController.Update already resolves the mouse ray once per
+                // render frame. Reuse it here instead of doing the same ray/rotation work
+                // again for every network input poll.
+                data.AimDirection = localTank.LocalAimDirection;
             }
 
             input.Set(data);
         }
 
+        private static Vector3 GetCameraRelativeMoveDirection(Vector2 moveInput, Camera inputCamera)
+        {
+            if (moveInput.sqrMagnitude < 0.0001f)
+                return Vector3.zero;
+
+            var cameraForward = inputCamera != null ? inputCamera.transform.forward : Vector3.forward;
+            var cameraRight = inputCamera != null ? inputCamera.transform.right : Vector3.right;
+            cameraForward = ProjectileTrajectory.FlattenDirection(cameraForward);
+            cameraRight = ProjectileTrajectory.FlattenDirection(cameraRight);
+
+            var direction = cameraForward * moveInput.y + cameraRight * moveInput.x;
+            return direction.sqrMagnitude > 0.0001f ? direction.normalized : Vector3.zero;
+        }
+
         public void OnSceneLoadStart(NetworkRunner runner)
         {
+            _inputCamera = null;
             SessionChanged?.Invoke();
         }
 

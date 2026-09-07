@@ -32,6 +32,8 @@ namespace TanTanTank
         private Camera _camera;
         private Vector3 _localAimDirection;
         private float _fireHeightFromRoot;
+        private TankNetworkInput _lastSimulationInput;
+        private bool _hasSimulationInput;
 
         public Vector3 TurretPosition => turret != null ? turret.position : transform.position;
         public Vector3 FirePosition
@@ -53,6 +55,9 @@ namespace TanTanTank
                 return ProjectileTrajectory.FlattenDirection(direction);
             }
         }
+        public Vector3 LocalAimDirection => _localAimDirection.sqrMagnitude > 0.001f
+            ? _localAimDirection
+            : FireDirection;
         public bool IsFireReady => Runner == null || FireCooldown.ExpiredOrNotRunning(Runner);
         public bool HasLocalControl => IsLocalPlayer();
         public float RemainingCooldown => Runner != null ? FireCooldown.RemainingTime(Runner) ?? 0f : 0f;
@@ -73,16 +78,6 @@ namespace TanTanTank
                 : Mathf.Max(0.8f, TurretPosition.y - transform.position.y);
         }
 
-        private void OnEnable()
-        {
-            Application.onBeforeRender += ApplyCurrentVisualAim;
-        }
-
-        private void OnDisable()
-        {
-            Application.onBeforeRender -= ApplyCurrentVisualAim;
-        }
-
         public void ConfigureReferences(Transform turretTransform, Transform muzzleFireTransform,
             TankAppearance tankAppearance)
         {
@@ -100,7 +95,10 @@ namespace TanTanTank
                 Local = this;
                 _localAimDirection = AimDirection.sqrMagnitude > 0.001f ? AimDirection : transform.forward;
             }
+            _lastSimulationInput = default;
+            _hasSimulationInput = false;
             appearance?.ApplyColor(ColorId);
+            ApplyTurretRotation(IsLocalPlayer() ? _localAimDirection : AimDirection);
         }
 
         public override void Despawned(NetworkRunner runner, bool hasState)
@@ -125,49 +123,57 @@ namespace TanTanTank
 
         public override void FixedUpdateNetwork()
         {
-            if (!Object.HasStateAuthority || _balance == null)
+            if (_balance == null || Object == null ||
+                (!Object.HasStateAuthority && !Object.HasInputAuthority))
                 return;
 
             var match = MatchController.Instance;
             var canAct = match != null && match.State == GameRoundState.RoundActive && HP > 0;
-            if (!GetInput(out TankNetworkInput input))
-                return;
+            if (GetInput(out TankNetworkInput input))
+            {
+                _lastSimulationInput = input;
+                _hasSimulationInput = true;
+            }
+            else
+            {
+                if (!_hasSimulationInput)
+                    return;
+
+                // A missing remote input packet must not turn one simulation tick into an
+                // artificial brake. The next received input (including a zero/release input)
+                // replaces this cached value immediately.
+                input = _lastSimulationInput;
+            }
 
             if (input.AimDirection.sqrMagnitude > 0.001f)
-                AimDirection = ProjectileTrajectory.FlattenDirection(input.AimDirection);
-
-            ApplyTurretRotation(AimDirection);
+            {
+                var inputAim = ProjectileTrajectory.FlattenDirection(input.AimDirection);
+                if (Object.HasStateAuthority)
+                    AimDirection = inputAim;
+                if (Object.HasInputAuthority)
+                    _localAimDirection = inputAim;
+            }
 
             if (canAct)
             {
-                SimulateMovement(input.MoveInput);
-                if (input.Buttons.WasPressed(PreviousButtons, (int)TankInputButton.Fire) && IsFireReady)
+                SimulateMovement(input.MoveDirection);
+                if (Object.HasStateAuthority &&
+                    input.Buttons.WasPressed(PreviousButtons, (int)TankInputButton.Fire) && IsFireReady)
                 {
                     FireCooldown = TickTimer.CreateFromSeconds(Runner, _balance.fireCooldown);
                     match.TryFire(this, FirePosition, FireDirection);
                 }
             }
 
-            PreviousButtons = input.Buttons;
+            if (Object.HasStateAuthority)
+                PreviousButtons = input.Buttons;
         }
 
         public override void Render()
         {
             appearance?.ApplyColor(ColorId);
-            ApplyCurrentVisualAim();
-        }
-
-        private void LateUpdate()
-        {
-            ApplyCurrentVisualAim();
-        }
-
-        private void ApplyCurrentVisualAim()
-        {
-            var direction = IsLocalPlayer() && _localAimDirection.sqrMagnitude > 0.001f
-                ? _localAimDirection
-                : AimDirection;
-            ApplyTurretRotation(direction);
+            if (!IsLocalPlayer())
+                ApplyTurretRotation(AimDirection);
         }
 
         private void Update()
@@ -272,23 +278,14 @@ namespace TanTanTank
             return Local;
         }
 
-        private void SimulateMovement(Vector2 moveInput)
+        private void SimulateMovement(Vector3 desiredDirection)
         {
-            if (moveInput.sqrMagnitude < 0.0001f)
-                return;
-
-            _camera ??= Camera.main;
-            var cameraForward = _camera != null ? _camera.transform.forward : Vector3.forward;
-            var cameraRight = _camera != null ? _camera.transform.right : Vector3.right;
-            cameraForward = ProjectileTrajectory.FlattenDirection(cameraForward);
-            cameraRight = ProjectileTrajectory.FlattenDirection(cameraRight);
-
-            var desiredDirection = cameraForward * moveInput.y + cameraRight * moveInput.x;
+            desiredDirection.y = 0f;
             if (desiredDirection.sqrMagnitude < 0.0001f)
                 return;
             desiredDirection.Normalize();
 
-            var currentForward = ProjectileTrajectory.FlattenDirection(transform.forward);
+            var currentForward = ProjectileTrajectory.FlattenDirection(_body.rotation * Vector3.forward);
             var moveSign = Vector3.Dot(currentForward, desiredDirection) >= 0f ? 1f : -1f;
             var targetFacing = desiredDirection * moveSign;
             var targetRotation = Quaternion.LookRotation(targetFacing, Vector3.up);
@@ -324,6 +321,8 @@ namespace TanTanTank
             FireCooldown = TickTimer.None;
             AimDirection = rotation * Vector3.forward;
             PreviousButtons = default;
+            _lastSimulationInput = default;
+            _hasSimulationInput = false;
             _body.position = position;
             _body.rotation = rotation;
             _body.linearVelocity = Vector3.zero;

@@ -28,7 +28,9 @@ namespace TanTanTank
 
     public struct TankNetworkInput : INetworkInput
     {
-        public Vector2 MoveInput;
+        // The input owner converts WASD to a world-space direction with its own
+        // camera. State authority must never reinterpret input with Camera.main.
+        public Vector3 MoveDirection;
         public Vector3 AimDirection;
         public NetworkButtons Buttons;
     }

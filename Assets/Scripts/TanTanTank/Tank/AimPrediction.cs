@@ -14,6 +14,11 @@ namespace TanTanTank
         private GameBalanceConfig _balance;
         private int _wallMask;
         private float _radius = 0.4f;
+        private float _nextRefreshTime;
+        private Vector3 _lastPosition;
+        private Vector3 _lastDirection;
+
+        private const float PreviewRefreshInterval = 1f / 30f;
 
         private void Awake()
         {
@@ -42,12 +47,25 @@ namespace TanTanTank
             if (!shouldShow || _balance == null)
             {
                 _line.enabled = false;
+                _nextRefreshTime = 0f;
                 return;
             }
 
-            _points.Clear();
             var position = _tank.FirePosition + Vector3.up * 0.03f;
             var direction = _tank.FireDirection;
+            if (_line.enabled && Time.unscaledTime < _nextRefreshTime)
+                return;
+
+            _nextRefreshTime = Time.unscaledTime + PreviewRefreshInterval;
+            if (_line.enabled && (position - _lastPosition).sqrMagnitude < 0.000001f &&
+                (direction - _lastDirection).sqrMagnitude < 0.000001f)
+            {
+                return;
+            }
+
+            _lastPosition = position;
+            _lastDirection = direction;
+            _points.Clear();
             var remaining = _balance.aimPreviewMaxDistance;
             _points.Add(position);
 
