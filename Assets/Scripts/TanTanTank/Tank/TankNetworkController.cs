@@ -5,9 +5,10 @@ using UnityEngine.InputSystem;
 
 namespace TanTanTank
 {
-    [DefaultExecutionOrder(-100)]
+    // Apply turret visuals after NetworkCharacterController has interpolated the root.
+    [DefaultExecutionOrder(100)]
     [DisallowMultipleComponent]
-    [RequireComponent(typeof(NetworkObject), typeof(NetworkTransform), typeof(Rigidbody))]
+    [RequireComponent(typeof(NetworkObject), typeof(NetworkCharacterController))]
     public sealed class TankNetworkController : NetworkBehaviour
     {
         public static readonly List<TankNetworkController> Instances = new();
@@ -27,13 +28,10 @@ namespace TanTanTank
         [Networked] private NetworkButtons PreviousButtons { get; set; }
 
         private GameBalanceConfig _balance;
-        private Rigidbody _body;
-        private NetworkTransform _networkTransform;
+        private NetworkCharacterController _movement;
         private Camera _camera;
         private Vector3 _localAimDirection;
         private float _fireHeightFromRoot;
-        private TankNetworkInput _lastSimulationInput;
-        private bool _hasSimulationInput;
 
         public Vector3 TurretPosition => turret != null ? turret.position : transform.position;
         public Vector3 FirePosition
@@ -70,9 +68,13 @@ namespace TanTanTank
             turret ??= transform.FindDeepChild("Turret");
             fireTransform ??= transform.FindDeepChild("Fire Transform");
             appearance ??= GetComponent<TankAppearance>();
-            _body = GetComponent<Rigidbody>();
-            _networkTransform = GetComponent<NetworkTransform>();
+            _movement = GetComponent<NetworkCharacterController>();
             _balance = Resources.Load<GameBalanceConfig>("TanTanTank/Game Balance");
+            if (_balance != null)
+            {
+                _movement.maxSpeed = _balance.tankMoveSpeed;
+                _movement.rotationSpeed = _balance.tankTurnSpeed * Mathf.Deg2Rad;
+            }
             _fireHeightFromRoot = fireTransform != null
                 ? Mathf.Max(0.1f, fireTransform.position.y - transform.position.y)
                 : Mathf.Max(0.8f, TurretPosition.y - transform.position.y);
@@ -95,8 +97,6 @@ namespace TanTanTank
                 Local = this;
                 _localAimDirection = AimDirection.sqrMagnitude > 0.001f ? AimDirection : transform.forward;
             }
-            _lastSimulationInput = default;
-            _hasSimulationInput = false;
             appearance?.ApplyColor(ColorId);
             ApplyTurretRotation(IsLocalPlayer() ? _localAimDirection : AimDirection);
         }
@@ -123,33 +123,18 @@ namespace TanTanTank
 
         public override void FixedUpdateNetwork()
         {
-            if (_balance == null || Object == null ||
-                (!Object.HasStateAuthority && !Object.HasInputAuthority))
+            if (_balance == null)
                 return;
 
             var match = MatchController.Instance;
             var canAct = match != null && match.State == GameRoundState.RoundActive && HP > 0;
-            if (GetInput(out TankNetworkInput input))
-            {
-                _lastSimulationInput = input;
-                _hasSimulationInput = true;
-            }
-            else
-            {
-                if (!_hasSimulationInput)
-                    return;
-
-                // A missing remote input packet must not turn one simulation tick into an
-                // artificial brake. The next received input (including a zero/release input)
-                // replaces this cached value immediately.
-                input = _lastSimulationInput;
-            }
+            if (!GetInput(out TankNetworkInput input))
+                return;
 
             if (input.AimDirection.sqrMagnitude > 0.001f)
             {
                 var inputAim = ProjectileTrajectory.FlattenDirection(input.AimDirection);
-                if (Object.HasStateAuthority)
-                    AimDirection = inputAim;
+                AimDirection = inputAim;
                 if (Object.HasInputAuthority)
                     _localAimDirection = inputAim;
             }
@@ -165,8 +150,7 @@ namespace TanTanTank
                 }
             }
 
-            if (Object.HasStateAuthority)
-                PreviousButtons = input.Buttons;
+            PreviousButtons = input.Buttons;
         }
 
         public override void Render()
@@ -281,21 +265,7 @@ namespace TanTanTank
         private void SimulateMovement(Vector3 desiredDirection)
         {
             desiredDirection.y = 0f;
-            if (desiredDirection.sqrMagnitude < 0.0001f)
-                return;
-            desiredDirection.Normalize();
-
-            var currentForward = ProjectileTrajectory.FlattenDirection(_body.rotation * Vector3.forward);
-            var moveSign = Vector3.Dot(currentForward, desiredDirection) >= 0f ? 1f : -1f;
-            var targetFacing = desiredDirection * moveSign;
-            var targetRotation = Quaternion.LookRotation(targetFacing, Vector3.up);
-            var nextRotation = Quaternion.RotateTowards(_body.rotation, targetRotation,
-                _balance.tankTurnSpeed * Runner.DeltaTime);
-            var nextForward = nextRotation * Vector3.forward;
-            var nextPosition = _body.position + nextForward * (moveSign * _balance.tankMoveSpeed * Runner.DeltaTime);
-            nextPosition.y = _body.position.y;
-            _body.MoveRotation(nextRotation);
-            _body.MovePosition(nextPosition);
+            _movement.Move(desiredDirection.normalized);
         }
 
         public void ApplyDamage(int damage)
@@ -321,13 +291,8 @@ namespace TanTanTank
             FireCooldown = TickTimer.None;
             AimDirection = rotation * Vector3.forward;
             PreviousButtons = default;
-            _lastSimulationInput = default;
-            _hasSimulationInput = false;
-            _body.position = position;
-            _body.rotation = rotation;
-            _body.linearVelocity = Vector3.zero;
-            _body.angularVelocity = Vector3.zero;
-            _networkTransform.Teleport(position, rotation);
+            _movement.Velocity = Vector3.zero;
+            _movement.Teleport(position, rotation);
         }
 
         public static TankNetworkController GetBySlot(int slot)

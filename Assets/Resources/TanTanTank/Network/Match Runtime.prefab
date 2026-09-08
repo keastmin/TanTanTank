@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1 &9204015688610657441
+--- !u!1 &8552644457573152653
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -8,9 +8,9 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 3273288683828407797}
-  - component: {fileID: 4081583506049494683}
-  - component: {fileID: 1329083606794635137}
+  - component: {fileID: 8109304093966871803}
+  - component: {fileID: 3931029680218553321}
+  - component: {fileID: 762161110342806304}
   m_Layer: 0
   m_Name: Match Runtime
   m_TagString: Untagged
@@ -18,13 +18,13 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &3273288683828407797
+--- !u!4 &8109304093966871803
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 9204015688610657441}
+  m_GameObject: {fileID: 8552644457573152653}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -33,33 +33,33 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &4081583506049494683
+--- !u!114 &3931029680218553321
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 9204015688610657441}
+  m_GameObject: {fileID: 8552644457573152653}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: -1552182283, guid: e725a070cec140c4caffb81624c8c787, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Fusion.Runtime.dll::Fusion.NetworkObject
-  SortKey: 3114129369
+  SortKey: 2546875203
   SendPriority: 1
   EnableInterpolation: 1
   Flags: 262146
   NestedObjects: []
   NetworkedBehaviours:
-  - {fileID: 1329083606794635137}
+  - {fileID: 762161110342806304}
   ForceRemoteRenderTimeframe: 0
---- !u!114 &1329083606794635137
+--- !u!114 &762161110342806304
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 9204015688610657441}
+  m_GameObject: {fileID: 8552644457573152653}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d7e87d1ddf84eda47a2f6bcec01c4149, type: 3}

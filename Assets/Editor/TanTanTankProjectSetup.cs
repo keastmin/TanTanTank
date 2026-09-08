@@ -213,12 +213,23 @@ internal static class TanTanTankProjectSetup
         EditPrefab("Assets/Prefabs/Player/Tank.prefab", root =>
         {
             GetOrAdd<NetworkObject>(root);
-            GetOrAdd<NetworkTransform>(root);
-            var rigidbody = GetOrAdd<Rigidbody>(root);
-            rigidbody.useGravity = true;
-            rigidbody.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
-            rigidbody.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
-            rigidbody.interpolation = RigidbodyInterpolation.None;
+            RemoveIfPresent<NetworkTransform>(root);
+            RemoveIfPresent<Rigidbody>(root);
+            var movement = GetOrAdd<NetworkCharacterController>(root);
+            var balance = Resources.Load<GameBalanceConfig>("TanTanTank/Game Balance");
+            if (balance != null)
+            {
+                movement.maxSpeed = balance.tankMoveSpeed;
+                movement.rotationSpeed = balance.tankTurnSpeed * Mathf.Deg2Rad;
+            }
+            var characterController = root.GetComponent<CharacterController>();
+            characterController.center = new Vector3(0f, 1.05f, 0f);
+            characterController.height = 2.06f;
+            characterController.radius = 1f;
+            characterController.skinWidth = 0.08f;
+            var physicsCollider = FindDeep(root.transform, "Physics Collider");
+            if (physicsCollider != null)
+                RemoveIfPresent<BoxCollider>(physicsCollider.gameObject);
             var appearance = GetOrAdd<TankAppearance>(root);
             var tankController = GetOrAdd<TankNetworkController>(root);
             tankController.ConfigureReferences(
